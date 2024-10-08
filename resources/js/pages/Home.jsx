@@ -125,6 +125,21 @@ const Home = () => {
         });
     };
 
+    // show popup to view task detail
+    const detailTask = (task) => {
+        const dateFormated = new Date(task.deadline).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'long',
+            day: '2-digit'
+        });
+        setDetailPopup(true);
+        setTitleTask(task.title);
+        setStatus(task.status);
+        setDescriptionTask(task.description);
+        setDeadline(dateFormated);
+        getFilePreview(task.id).then(file => setPreviewUrl(file ? URL.createObjectURL(file) : null));
+    }
+
     // show popup to start editing a task
     const startEditing = async (task) => {
         const file = await getFilePreview(task.id);
@@ -283,7 +298,7 @@ const Home = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <button
-                                            onClick={() => { setDetailPopup(true); getFilePreview(task.id).then(file => setPreviewUrl(file ? URL.createObjectURL(file) : null)); }}
+                                            onClick={() => detailTask(task)}
                                             className="text-blue-600 hover:text-blue-900 mr-3 transition duration-300 ease-in-out"
                                         >
                                             <BsEye className="inline-block mr-1" size={18} />
@@ -313,15 +328,15 @@ const Home = () => {
                 {detailPopup && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
                         <div className="relative p-8 bg-white w-full max-w-6xl m-4 rounded-xl shadow-2xl">
-                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Judul Task</h3>
+                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">{titleTask}</h3>
                             <div className="flex items-center gap-4">
-                                <span className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-1 rounded-lg">Pending</span>
+                                <span className={`bg-${status === 'pending' ? 'yellow' : status === 'in_progress' ? 'blue' : 'green'}-100 border border-${status === 'pending' ? 'yellow' : status === 'in_progress' ? 'blue' : 'green'}-400 text-${status === 'pending' ? 'yellow' : status === 'in_progress' ? 'blue' : 'green'}-700 px-3 py-1 rounded-lg`}>{status === 'pending' ? 'Pending' : status === 'in_progress' ? 'In Progress' : 'Completed'}</span>
                                 <div className="text-sm text-center">
                                     <p>Due Date</p>
-                                    <p className="text-red-600">10 Oktober 2024</p>
+                                    <p className="text-red-600">{deadline}</p>
                                 </div>
                             </div>
-                            <p className="mt-3">nambah deskripsi jajal nambah deskripsi jajalnambah deskripsi jajal nambah deskripsi jajal</p>
+                            <p className="mt-3">{descriptionTask}</p>
                             {previewUrl && (
                                 <div className="my-4">
                                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Attachment Preview:</h4>
