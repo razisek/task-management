@@ -43,6 +43,9 @@ run this command to build react
 ```sh
 npm run build
 ```
+## Deployment Project
+don't forget to change the API endpoint in the `resources/js/Api/api.jsx` file
+
 ## Postman Documentation
 Documentation of Rest API Task Management\
 [Click Here](https://restless-trinity-40572.postman.co/workspace/K24-Technical-Test~3c9ee81f-c03b-4c1c-991b-30de1039e037/collection/8663357-40003a5d-47d1-449e-abde-20959a141e81?action=share&creator=8663357)
