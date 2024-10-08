@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { BsEye, BsEyeSlash } from 'react-icons/bs';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../Api/api';
 import Alert from '../components/Alert';
 
@@ -104,6 +104,7 @@ const Login = () => {
                         )}
                     </button>
                 </form>
+                <p>Don't have an account? <NavLink to="/register" className="text-blue-600" >Register</NavLink></p>
             </div>
         </div>
     )
