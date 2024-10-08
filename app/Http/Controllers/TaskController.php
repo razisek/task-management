@@ -16,6 +16,12 @@ class TaskController extends Controller
         try {
             $tasks = auth()->user()->tasks;
 
+            foreach ($tasks as $task) {
+                if ($task->attachment_url) {
+                    $task->attachment_url = url('api/tasks/' . $task->id . '/preview');
+                }
+            }
+
             return response()->json([
                 'message' => 'Tasks list',
                 'data' => $tasks,
