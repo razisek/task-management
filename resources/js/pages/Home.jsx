@@ -12,7 +12,7 @@ const Home = () => {
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
-    const [detailPopup, setDetailPopup] = useState(true);
+    const [detailPopup, setDetailPopup] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -37,7 +37,7 @@ const Home = () => {
     const fetchTasks = async () => {
         try {
             await api.get('/tasks').then(response => {
-                showTask(response.data);
+                showTask(response.data.data);
             });
         } catch (error) {
             console.error(error);
