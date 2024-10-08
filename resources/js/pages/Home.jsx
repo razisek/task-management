@@ -1,18 +1,52 @@
 import React, { useState, useEffect } from 'react'
 import { BsTrash, BsPencil, BsEye, BsPlusLg } from "react-icons/bs";
+import Alert from '../components/Alert';
+import api from '../Api/api';
 
 const Home = () => {
     const [tasks, setTasks] = useState([]);
     const [titleTask, setTitleTask] = useState('');
     const [descriptionTask, setDescriptionTask] = useState('');
     const [deadline, setDeadline] = useState('');
-    const [status, setStatus] = useState('Pending');
+    const [status, setStatus] = useState('pending');
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [detailPopup, setDetailPopup] = useState(true);
     const [editingTask, setEditingTask] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+
+    // reordering tasks based on status
+    const showTask = (tasks) => {
+        const statusOrder = {
+            "pending": 1,
+            "in_progress": 2,
+            "completed": 3
+        };
+
+        tasks.sort((a, b) => {
+            return statusOrder[a.status] - statusOrder[b.status];
+        });
+
+        setTasks(tasks);
+    };
+
+    // Fetch all tasks
+    const fetchTasks = async () => {
+        try {
+            await api.get('/tasks').then(response => {
+                showTask(response.data);
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     useEffect(() => {
+        fetchTasks();
+
         return () => {
             if (previewUrl) {
                 URL.revokeObjectURL(previewUrl);
@@ -20,73 +54,192 @@ const Home = () => {
         };
     }, [previewUrl]);
 
+    // Add a new task
     const addTask = () => {
-        if (titleTask.trim() !== '') {
-            setTasks([...tasks, {
-                id: Date.now(),
-                title: titleTask,
-                description: descriptionTask,
-                deadline: deadline,
-                status: status,
-                file: file
-            }]);
-            setTitleTask('');
-            setDescriptionTask('');
-            setFile(null);
-            setPreviewUrl(null);
-            setIsPopupOpen(false);
+        setLoading(true);
+        const formData = new FormData();
+        formData.append('title', titleTask);
+        formData.append('description', descriptionTask);
+        formData.append('deadline', deadline);
+        formData.append('status', status);
+        if (file) {
+            formData.append('attachment_url', file);
+        }
+
+        try {
+            api.post('/tasks', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            }).then(response => {
+                setLoading(false);
+                setSuccess('Task added successfully.');
+                setError(null);
+                setTitleTask('');
+                setDescriptionTask('');
+                setFile(null);
+                setTimeout(() => {
+                    fetchTasks();
+                    setIsPopupOpen(false);
+                    setSuccess(null);
+                }, 2000);
+            }).catch(error => {
+                setLoading(false);
+                if (error.response && error.response.status === 422) {
+                    if (error.response.data.errors.title) {
+                        setError(error.response.data.errors.title[0]);
+                    } else if (error.response.data.errors.status) {
+                        setError(error.response.data.errors.status[0]);
+                    } else if (error.response.data.errors.deadline) {
+                        setError(error.response.data.errors.deadline[0]);
+                    } else if (error.response.data.errors.attachment_url) {
+                        setError(error.response.data.errors.attachment_url[0]);
+                    } else {
+                        setError('Check your form inputs.');
+                    }
+                } else {
+                    setError('An error occurred. Please try again.');
+                }
+            });;
+        } catch (error) {
+            setLoading(false);
+            setSuccess(null);
+            setError('An error occurred. Please try again.');
         }
     };
 
-    const deleteTask = (id) => {
-        setTasks(tasks.filter(task => task.id !== id));
+    // Get the file preview
+    const getFilePreview = async (id) => {
+        return await api.get(`/tasks/${id}/preview`, {
+            responseType: 'blob',
+        }).then(response => {
+            if (response.data) {
+                return response.data;
+            } else {
+                return null;
+            }
+        }).catch(error => {
+            if (error.response.status !== 200) {
+                return null;
+            }
+        });
     };
 
-    const startEditing = (task) => {
+    // show popup to start editing a task
+    const startEditing = async (task) => {
+        const file = await getFilePreview(task.id);
         setEditingTask(task);
         setTitleTask(task.title);
         setDescriptionTask(task.description);
         setDeadline(task.deadline);
         setStatus(task.status);
-        setFile(task.file);
-        setPreviewUrl(task.file ? URL.createObjectURL(task.file) : null);
+        setFile(task.attachment_url);
+        setPreviewUrl(file ? URL.createObjectURL(file) : null);
         setIsPopupOpen(true);
     };
 
+    // Save the edited task
     const saveEdit = () => {
-        setTasks(tasks.map(task =>
-            task.id === editingTask.id ? {
-                ...task,
-                title: titleTask,
-                description: descriptionTask,
-                deadline: deadline,
-                status: status,
-                file: file
-            } : task
-        ));
-        setEditingTask(null);
-        setTitleTask('');
-        setFile(null);
-        setPreviewUrl(null);
-        setIsPopupOpen(false);
+        setLoading(true);
+        const formData = new FormData();
+        formData.append('title', titleTask);
+        formData.append('description', descriptionTask);
+        formData.append('deadline', deadline);
+        formData.append('status', status);
+        if (file) {
+            formData.append('attachment_url', file);
+        }
+
+        try {
+            api.post(`/tasks/${editingTask.id}?_method=PUT`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            }).then(response => {
+                setLoading(false);
+                setSuccess('Task updated successfully.');
+                setError(null);
+                setEditingTask(null);
+                setTitleTask('');
+                setFile(null);
+                setPreviewUrl(null);
+                setTimeout(() => {
+                    fetchTasks();
+                    setIsPopupOpen(false);
+                    setSuccess(null);
+                }, 2000);
+            }).catch(error => {
+                setLoading(false);
+                if (error.response && error.response.status === 422) {
+                    if (error.response.data.errors.title) {
+                        setError(error.response.data.errors.title[0]);
+                    } else if (error.response.data.errors.status) {
+                        setError(error.response.data.errors.status[0]);
+                    } else if (error.response.data.errors.deadline) {
+                        setError(error.response.data.errors.deadline[0]);
+                    } else if (error.response.data.errors.attachment_url) {
+                        setError(error.response.data.errors.attachment_url[0]);
+                    } else {
+                        setError('Check your form inputs.');
+                    }
+                } else {
+                    setError('An error occurred. Please try again.');
+                }
+            });
+        } catch (error) {
+            setLoading(false);
+            setSuccess(null);
+            setError('An error occurred. Please try again.');
+        }
+
     };
 
+    // Delete a task
+    const deleteTask = (id) => {
+        confirm('Are you sure you want to delete this task?') && api.delete(`/tasks/${id}?_method=DELETE`).then(response => {
+            showTask(tasks.filter(task => task.id !== id));
+        }).catch(error => {
+            alert('An error occurred. Please try again.');
+        });
+    };
+
+    // Logout the user
+    const logoutApp = () => {
+        const logout = confirm('Are you sure you want to logout?');
+        if (logout) {
+            api.post('/logout').then(response => {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }).catch(error => {
+                console.error(error);
+            });
+        }
+    };
+
+    // Handle file change on file input
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile && selectedFile.type === 'application/pdf') {
             setFile(selectedFile);
-            setPreviewUrl(URL.createObjectURL(selectedFile));
         } else {
             alert('Please select a PDF file.');
             setFile(null);
-            setPreviewUrl(null);
         }
     };
 
     return (
         <div className="p-4 bg-gray-100 h-screen w-full">
             <div className="container mx-auto">
-                <h1 className="text-3xl font-bold mb-6 text-gray-800">Task Management System</h1>
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold mb-6 text-gray-800">Task Management System</h1>
+                    <button
+                        onClick={() => logoutApp()}
+                        className="bg-red-600 hover:bg-red-400 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out"
+                        disabled={loading}
+                    >
+                        Logout
+                    </button>
+                </div>
 
                 <div className="mb-6">
                     <button
@@ -126,18 +279,16 @@ const Home = () => {
                                         <div className="text-sm font-medium text-gray-900">{task.deadline}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">{task.status}</div>
+                                        <Alert message={task.status === 'pending' ? 'Pending' : task.status === 'in_progress' ? 'In Progress' : 'Completed'} type={task.status === 'pending' ? 'warning' : task.status === 'in_progress' ? 'info' : 'success'} />
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        {task.file && (
-                                            <button
-                                                onClick={() => window.open(URL.createObjectURL(task.file), '_blank')}
-                                                className="text-blue-600 hover:text-blue-900 mr-3 transition duration-300 ease-in-out"
-                                            >
-                                                <BsEye className="inline-block mr-1" size={18} />
-                                                View
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => { setDetailPopup(true); getFilePreview(task.id).then(file => setPreviewUrl(file ? URL.createObjectURL(file) : null)); }}
+                                            className="text-blue-600 hover:text-blue-900 mr-3 transition duration-300 ease-in-out"
+                                        >
+                                            <BsEye className="inline-block mr-1" size={18} />
+                                            View
+                                        </button>
                                         <button
                                             onClick={() => startEditing(task)}
                                             className="text-indigo-600 hover:text-indigo-900 mr-3 transition duration-300 ease-in-out"
@@ -159,14 +310,52 @@ const Home = () => {
                     </table>
                 </div>
 
+                {detailPopup && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+                        <div className="relative p-8 bg-white w-full max-w-6xl m-4 rounded-xl shadow-2xl">
+                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Judul Task</h3>
+                            <div className="flex items-center gap-4">
+                                <span className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-1 rounded-lg">Pending</span>
+                                <div className="text-sm text-center">
+                                    <p>Due Date</p>
+                                    <p className="text-red-600">10 Oktober 2024</p>
+                                </div>
+                            </div>
+                            <p className="mt-3">nambah deskripsi jajal nambah deskripsi jajalnambah deskripsi jajal nambah deskripsi jajal</p>
+                            {previewUrl && (
+                                <div className="my-4">
+                                    <h4 className="text-lg font-semibold mb-2 text-gray-700">Attachment Preview:</h4>
+                                    <iframe
+                                        src="https://razisek.com/cv.pdf"
+                                        className="w-full h-[30rem] border border-gray-300 rounded-lg"
+                                        title="PDF Preview"
+                                    ></iframe>
+                                </div>
+                            )}
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => { setDetailPopup(false); setPreviewUrl(null); }}
+                                    className="bg-red-600 hover:bg-red-400 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out"
+                                    disabled={loading}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {isPopupOpen && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
                         <div className="relative p-8 bg-white w-full max-w-2xl m-4 rounded-xl shadow-2xl">
                             <h3 className="text-2xl font-semibold text-gray-800 mb-4">{editingTask ? 'Edit Task' : 'Add New Task'}</h3>
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">Title</label>
+                            {error && <Alert message={error} type="error" />}
+                            {success && <Alert message={success} type="success" />}
+                            <label className="block text-gray-700 text-sm font-bold mb-2 mt-2" htmlFor="title">Title</label>
                             <input
                                 id="title"
                                 type="text"
+                                disabled={loading}
                                 value={titleTask}
                                 onChange={(e) => setTitleTask(e.target.value)}
                                 placeholder="Enter task title"
@@ -175,6 +364,7 @@ const Home = () => {
                             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">Description</label>
                             <textarea
                                 id="description"
+                                disabled={loading}
                                 value={descriptionTask}
                                 onChange={(e) => setDescriptionTask(e.target.value)}
                                 placeholder="Enter task description"
@@ -185,6 +375,7 @@ const Home = () => {
                             <input
                                 id="deadline"
                                 type="date"
+                                disabled={loading}
                                 value={deadline}
                                 onChange={(e) => setDeadline(e.target.value)}
                                 className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 mb-4"
@@ -192,13 +383,14 @@ const Home = () => {
                             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="status">Status</label>
                             <select
                                 id="status"
+                                disabled={loading}
                                 value={status}
                                 onChange={(e) => setStatus(e.target.value)}
                                 className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 mb-4"
                             >
-                                <option value="Pending">Pending</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
                             </select>
                             <div className="mb-4">
                                 <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="file-upload">
@@ -206,6 +398,7 @@ const Home = () => {
                                 </label>
                                 <input
                                     id="file-upload"
+                                    disabled={loading}
                                     type="file"
                                     onChange={handleFileChange}
                                     accept=".pdf"
@@ -214,7 +407,7 @@ const Home = () => {
                             </div>
                             {previewUrl && (
                                 <div className="mb-4">
-                                    <h4 className="text-lg font-semibold mb-2 text-gray-700">PDF Preview:</h4>
+                                    <h4 className="text-lg font-semibold mb-2 text-gray-700">Attachment Preview:</h4>
                                     <iframe
                                         src={previewUrl}
                                         className="w-full h-64 border border-gray-300 rounded-lg"
@@ -226,12 +419,29 @@ const Home = () => {
                                 <button
                                     onClick={editingTask ? saveEdit : addTask}
                                     className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-300 ease-in-out"
+                                    disabled={loading}
                                 >
-                                    {editingTask ? 'Save Changes' : 'Add Task'}
+                                    {loading ? (
+                                        <span className="flex items-center justify-center">
+                                            <svg
+                                                className="w-5 h-5 mr-3 text-white animate-spin"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2s-.9 2-2 2H6c-1.1 0-2-.9-2-2z"></path>
+                                            </svg>
+                                            Loading...
+                                        </span>
+                                    ) : (
+                                        editingTask ? 'Save Changes' : 'Add Task'
+                                    )}
                                 </button>
                                 <button
                                     onClick={() => { setIsPopupOpen(false); setPreviewUrl(null); }}
                                     className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out"
+                                    disabled={loading}
                                 >
                                     Cancel
                                 </button>
