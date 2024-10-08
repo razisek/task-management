@@ -74,7 +74,7 @@ class TaskController extends Controller
                 return response()->json(['message' => 'Task not found'], 404);
             }
 
-            if ($task->user_id !== auth()->id()) {
+            if ($task->user_id != auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -101,7 +101,7 @@ class TaskController extends Controller
                 return response()->json(['message' => 'Task not found'], 404);
             }
 
-            if ($task->user_id !== auth()->id()) {
+            if ($task->user_id != auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -147,7 +147,7 @@ class TaskController extends Controller
                 return response()->json(['message' => 'Task not found'], 404);
             }
 
-            if ($task->user_id !== auth()->id()) {
+            if ($task->user_id != auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
@@ -178,7 +178,7 @@ class TaskController extends Controller
                 return response()->json(['message' => 'Task not found'], 404);
             }
 
-            if ($task->user_id !== auth()->id()) {
+            if ($task->user_id != auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
