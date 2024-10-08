@@ -341,7 +341,7 @@ const Home = () => {
                                 <div className="my-4">
                                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Attachment Preview:</h4>
                                     <iframe
-                                        src="https://razisek.com/cv.pdf"
+                                        src={previewUrl}
                                         className="w-full h-[30rem] border border-gray-300 rounded-lg"
                                         title="PDF Preview"
                                     ></iframe>
